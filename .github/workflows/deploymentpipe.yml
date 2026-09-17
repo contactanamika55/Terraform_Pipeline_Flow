@@ -7,14 +7,14 @@ on:
       - main
     paths:
       - 'environment/**'
-      - '.github/workflows/deploy-infra.yml'
+      - '.github/workflows/deploymentpipe.yml'
 
   pull_request:
     branches:
       - main
     paths:
       - 'environment/**'
-      - '.github/workflows/deploy-infra.yml'
+      - '.github/workflows/deploymentpipe.yml'
 
 permissions:
   contents: read
