@@ -21,7 +21,7 @@ permissions:
 
 env:
   TF_WORKING_DIR: dev
-  TF_VARS_FILE: Terraform_Pipeline_Flow/dev/terraform.tfvars
+  TF_VARS_FILE: terraform.tfvars
 
 jobs:
 
