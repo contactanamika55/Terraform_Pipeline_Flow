@@ -1,41 +1,56 @@
-
 name: Terraform Deploy
+
 on:
-  workflow_dispatch: 
+  workflow_dispatch:
+
   push:
     branches:
       - main
     paths:
-      - 'environment/**'
-      - '.github/workflows/deploy-infra.yml'
+      - 'dev/**'
+      - 'module/**'
+      - '.github/workflows/deploymentpipe.yml'
 
   pull_request:
     branches:
       - main
     paths:
-      - 'environment/**'
-      - '.github/workflows/deploy-infra.yml'
+      - 'dev/**'
+      - 'module/**'
+      - '.github/workflows/deploymentpipe.yml'
 
 permissions:
   contents: read
 
 env:
-  TF_WORKING_DIR: environment
-  TF_VARS_FILE: dev/terraform.tfvars
+  TF_WORKING_DIR: dev
+  TF_VARS_FILE: terraform.tfvars
 
 jobs:
 
   # ==================================================
   # 1. Terraform Scan / Validation / Plan
   # ==================================================
-  terraform-plan:
+  terraform_plan:
     name: Terraform Scan & Plan
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
 
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Check Repository
+        shell: powershell
+        run: |
+          Write-Host "Workspace:"
+          Write-Host $env:GITHUB_WORKSPACE
+
+          Write-Host "Repository files:"
+          Get-ChildItem $env:GITHUB_WORKSPACE
+
+          Write-Host "Dev files:"
+          Get-ChildItem "$env:GITHUB_WORKSPACE\dev"
 
       - name: Azure Login
         uses: azure/login@v2
@@ -43,6 +58,7 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Azure Account
+        shell: powershell
         run: az account show
 
       - name: Setup Terraform
@@ -50,45 +66,59 @@ jobs:
 
       - name: Terraform Format Check
         working-directory: ${{ env.TF_WORKING_DIR }}
+        shell: powershell
         run: terraform fmt -check -recursive
 
       - name: Terraform Init
         working-directory: ${{ env.TF_WORKING_DIR }}
+        shell: powershell
         run: terraform init
 
       - name: Terraform Validate
         working-directory: ${{ env.TF_WORKING_DIR }}
+        shell: powershell
         run: terraform validate
 
       - name: Terraform Plan
         working-directory: ${{ env.TF_WORKING_DIR }}
+        shell: powershell
         run: |
-          terraform plan \
-            -var-file="${{ env.TF_VARS_FILE }}" \
+          terraform plan `
+            -var-file="${{ env.TF_VARS_FILE }}" `
             -out=tfplan
+
+      - name: Check Terraform Plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        shell: powershell
+        run: |
+          Write-Host "Checking tfplan..."
+          Get-ChildItem
+
+          if (-not (Test-Path "tfplan")) {
+            Write-Error "tfplan was not created"
+            exit 1
+          }
+
+          Write-Host "tfplan created successfully"
 
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
         with:
           name: terraform-plan
-          path: environment/tfplan
+          path: ${{ github.workspace }}/dev/tfplan
+          if-no-files-found: error
           retention-days: 1
+
+
   # ==================================================
   # 2. Terraform Apply
   # ==================================================
-  terraform-apply:
+  terraform_apply:
     name: Terraform Apply
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
-    needs: terraform-plan
+    needs: terraform_plan
 
-    if: |
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/main'
-
-    # Manual approval
-    environment:
-      name: production
     steps:
 
       - name: Checkout repository
@@ -100,6 +130,7 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Azure Account
+        shell: powershell
         run: az account show
 
       - name: Setup Terraform
@@ -107,14 +138,31 @@ jobs:
 
       - name: Terraform Init
         working-directory: ${{ env.TF_WORKING_DIR }}
+        shell: powershell
         run: terraform init
 
       - name: Download Terraform Plan
         uses: actions/download-artifact@v4
         with:
           name: terraform-plan
-          path: environment
+          path: ${{ github.workspace }}/dev
+
+      - name: Check Downloaded Plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        shell: powershell
+        run: |
+          Write-Host "Checking downloaded tfplan..."
+          Get-ChildItem
+
+          if (-not (Test-Path "tfplan")) {
+            Write-Error "tfplan was not downloaded"
+            exit 1
+          }
+
+          Write-Host "tfplan downloaded successfully"
 
       - name: Terraform Apply
         working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform apply -auto-approve tfplan
+        shell: powershell
+        run: |
+          terraform apply -auto-approve tfplan
