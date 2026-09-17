@@ -1,0 +1,7 @@
+variable "appgw" {
+
+}
+
+variable "ipvar" {
+
+}
