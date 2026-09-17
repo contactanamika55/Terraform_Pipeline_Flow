@@ -37,57 +37,122 @@ jobs:
 
     steps:
 
+      # -----------------------------------------------
+      # Checkout
+      # -----------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # -----------------------------------------------
+      # DEBUG - Check repository structure
+      # -----------------------------------------------
+      - name: Check Repository Structure
+        shell: powershell
+        run: |
+          Write-Host "======================================"
+          Write-Host "GITHUB WORKSPACE"
+          Write-Host "======================================"
+          Write-Host $env:GITHUB_WORKSPACE
+
+          Write-Host ""
+          Write-Host "======================================"
+          Write-Host "ROOT DIRECTORY"
+          Write-Host "======================================"
+          Get-ChildItem $env:GITHUB_WORKSPACE
+
+          Write-Host ""
+          Write-Host "======================================"
+          Write-Host "DEV DIRECTORY"
+          Write-Host "======================================"
+
+          $devPath = Join-Path $env:GITHUB_WORKSPACE "dev"
+
+          if (Test-Path $devPath) {
+              Get-ChildItem $devPath
+          }
+          else {
+              Write-Error "ERROR: dev directory does NOT exist!"
+              exit 1
+          }
+
+      # -----------------------------------------------
+      # Azure Login
+      # -----------------------------------------------
       - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Azure Account
+        shell: powershell
         run: az account show
 
+      # -----------------------------------------------
+      # Terraform
+      # -----------------------------------------------
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
+      # -----------------------------------------------
+      # Terraform Format
+      # -----------------------------------------------
       - name: Terraform Format Check
         working-directory: ${{ env.TF_WORKING_DIR }}
+        shell: powershell
         run: terraform fmt -check -recursive
 
+      # -----------------------------------------------
+      # Terraform Init
+      # -----------------------------------------------
       - name: Terraform Init
         working-directory: ${{ env.TF_WORKING_DIR }}
+        shell: powershell
         run: terraform init
 
+      # -----------------------------------------------
+      # Terraform Validate
+      # -----------------------------------------------
       - name: Terraform Validate
         working-directory: ${{ env.TF_WORKING_DIR }}
+        shell: powershell
         run: terraform validate
 
+      # -----------------------------------------------
+      # Terraform Plan
+      # -----------------------------------------------
       - name: Terraform Plan
         working-directory: ${{ env.TF_WORKING_DIR }}
+        shell: powershell
         run: |
           terraform plan `
             -var-file="${{ env.TF_VARS_FILE }}" `
             -out=tfplan
 
-      # Check that tfplan was actually created
+      # -----------------------------------------------
+      # Verify tfplan
+      # -----------------------------------------------
       - name: Check Terraform Plan File
         working-directory: ${{ env.TF_WORKING_DIR }}
+        shell: powershell
         run: |
-          Write-Host "Current directory:"
-          Get-Location
+          Write-Host "======================================"
+          Write-Host "PLAN FILE CHECK"
+          Write-Host "======================================"
 
-          Write-Host "Files in dev:"
+          Get-Location
           Get-ChildItem
 
           if (-not (Test-Path "tfplan")) {
-            Write-Error "ERROR: tfplan file was NOT created!"
-            exit 1
+              Write-Error "ERROR: tfplan was NOT created!"
+              exit 1
           }
 
+          Write-Host ""
           Write-Host "SUCCESS: tfplan file exists."
 
-      # Upload tfplan as artifact
+      # -----------------------------------------------
+      # Upload tfplan
+      # -----------------------------------------------
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
         with:
@@ -108,50 +173,74 @@ jobs:
 
     steps:
 
+      # -----------------------------------------------
+      # Checkout
+      # -----------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # -----------------------------------------------
+      # Azure Login
+      # -----------------------------------------------
       - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Azure Account
+        shell: powershell
         run: az account show
 
+      # -----------------------------------------------
+      # Terraform
+      # -----------------------------------------------
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
+      # -----------------------------------------------
+      # Terraform Init
+      # -----------------------------------------------
       - name: Terraform Init
         working-directory: ${{ env.TF_WORKING_DIR }}
+        shell: powershell
         run: terraform init
 
-      # Download artifact created by terraform_plan
+      # -----------------------------------------------
+      # Download Plan Artifact
+      # -----------------------------------------------
       - name: Download Terraform Plan
         uses: actions/download-artifact@v4
         with:
           name: terraform-plan
           path: ${{ github.workspace }}/dev
 
-      # Verify downloaded file
+      # -----------------------------------------------
+      # Verify Downloaded Plan
+      # -----------------------------------------------
       - name: Check Downloaded Terraform Plan
         working-directory: ${{ env.TF_WORKING_DIR }}
+        shell: powershell
         run: |
-          Write-Host "Current directory:"
-          Get-Location
+          Write-Host "======================================"
+          Write-Host "DOWNLOADED PLAN CHECK"
+          Write-Host "======================================"
 
-          Write-Host "Downloaded files:"
+          Get-Location
           Get-ChildItem
 
           if (-not (Test-Path "tfplan")) {
-            Write-Error "ERROR: Downloaded tfplan file was NOT found!"
-            exit 1
+              Write-Error "ERROR: Downloaded tfplan was NOT found!"
+              exit 1
           }
 
+          Write-Host ""
           Write-Host "SUCCESS: tfplan downloaded successfully."
 
-      # Apply
+      # -----------------------------------------------
+      # Terraform Apply
+      # -----------------------------------------------
       - name: Terraform Apply
         working-directory: ${{ env.TF_WORKING_DIR }}
+        shell: powershell
         run: |
           terraform apply -auto-approve tfplan
