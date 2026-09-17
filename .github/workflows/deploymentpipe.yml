@@ -113,7 +113,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: terraform-plan
-          path: environment
+          path: dev
 
       - name: Terraform Apply
         working-directory: ${{ env.TF_WORKING_DIR }}
