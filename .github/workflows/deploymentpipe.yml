@@ -82,11 +82,12 @@ jobs:
   # 2. Terraform Apply
   # ==================================================
   
-  terraform-apply:
+terraform-apply:
   name: Terraform Apply
   runs-on: self-hosted
-
   needs: terraform-plan
+
+  if: ${{ needs.terraform-plan.result == 'success' }}
 
   environment:
     name: production
@@ -116,6 +117,12 @@ jobs:
       with:
         name: terraform-plan
         path: dev
+
+    - name: Check Terraform Plan
+      working-directory: ${{ env.TF_WORKING_DIR }}
+      run: |
+        Write-Host "Checking tfplan file..."
+        Get-ChildItem
 
     - name: Terraform Apply
       working-directory: ${{ env.TF_WORKING_DIR }}
