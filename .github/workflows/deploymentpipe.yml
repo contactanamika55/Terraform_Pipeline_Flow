@@ -126,4 +126,4 @@ terraform-apply:
 
     - name: Terraform Apply
       working-directory: ${{ env.TF_WORKING_DIR }}
-      run: terraform apply -auto-approve tfplan
+      run: terraform apply -auto-approve tfpla
