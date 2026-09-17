@@ -9,7 +9,7 @@ on:
     paths:
       - 'dev/**'
       - 'module/**'
-      - '.github/workflows/deploy-infra.yml'
+      - '.github/workflows/deploymentpipe.yml'
 
   pull_request:
     branches:
@@ -17,7 +17,7 @@ on:
     paths:
       - 'dev/**'
       - 'module/**'
-      - '.github/workflows/deploy-infra.yml'
+      - '.github/workflows/deploymentpipe.yml'
 
 permissions:
   contents: read
@@ -28,10 +28,7 @@ env:
 
 jobs:
 
-  # ==================================================
-  # 1. Terraform Scan / Validation / Plan
-  # ==================================================
-  terraform-plan:
+  terraform_plan:
     name: Terraform Scan & Plan
     runs-on: self-hosted
 
@@ -78,52 +75,44 @@ jobs:
           retention-days: 1
 
 
-  # ==================================================
-  # 2. Terraform Apply
-  # ==================================================
-  
-  terraform-apply:
-  name: Terraform Apply
-  runs-on: self-hosted
-  needs: terraform-plan
+  terraform_apply:
+    name: Terraform Apply
+    runs-on: self-hosted
 
-  if: ${{ needs.terraform-plan.result == 'success' }}
+    needs: terraform_plan
 
-  environment:
-    name: production
+    steps:
 
-  steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-    - name: Azure Login
-      uses: azure/login@v2
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Azure Account
+        run: az account show
 
-    - name: Azure Account
-      run: az account show
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
 
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v3
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init
 
-    - name: Terraform Init
-      working-directory: ${{ env.TF_WORKING_DIR }}
-      run: terraform init
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan
+          path: dev
 
-    - name: Download Terraform Plan
-      uses: actions/download-artifact@v4
-      with:
-        name: terraform-plan
-        path: dev
+      - name: Check Terraform Plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          Write-Host "Checking tfplan file..."
+          Get-ChildItem
 
-    - name: Check Terraform Plan
-      working-directory: ${{ env.TF_WORKING_DIR }}
-      run: |
-        Write-Host "Checking tfplan file..."
-        Get-ChildItem
-
-    - name: Terraform Apply
-      working-directory: ${{ env.TF_WORKING_DIR }}
-      run: terraform apply -auto-approve tfplan
+      - name: Terraform Apply
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform apply -auto-approve tfplan
