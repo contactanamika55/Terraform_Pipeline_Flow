@@ -1,27 +1,30 @@
-
 name: Terraform Deploy
+
 on:
-  workflow_dispatch: 
+  workflow_dispatch:
+
   push:
     branches:
       - main
     paths:
-      - 'environment/**'
+      - 'dev/**'
+      - 'module/**'
       - '.github/workflows/deploy-infra.yml'
 
   pull_request:
     branches:
       - main
     paths:
-      - 'environment/**'
+      - 'dev/**'
+      - 'module/**'
       - '.github/workflows/deploy-infra.yml'
 
 permissions:
   contents: read
 
 env:
-  TF_WORKING_DIR: environment
-  TF_VARS_FILE: dev/terraform.tfvars
+  TF_WORKING_DIR: dev
+  TF_VARS_FILE: terraform.tfvars
 
 jobs:
 
@@ -63,16 +66,18 @@ jobs:
       - name: Terraform Plan
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
-          terraform plan \
-            -var-file="${{ env.TF_VARS_FILE }}" \
+          terraform plan `
+            -var-file="${{ env.TF_VARS_FILE }}" `
             -out=tfplan
 
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
         with:
           name: terraform-plan
-          path: environment/tfplan
+          path: dev/tfplan
           retention-days: 1
+
+
   # ==================================================
   # 2. Terraform Apply
   # ==================================================
@@ -86,9 +91,10 @@ jobs:
       github.event_name == 'push' &&
       github.ref == 'refs/heads/main'
 
-    # Manual approval
+    # GitHub Environment approval
     environment:
       name: production
+
     steps:
 
       - name: Checkout repository
@@ -113,7 +119,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: terraform-plan
-          path: environment
+          path: dev
 
       - name: Terraform Apply
         working-directory: ${{ env.TF_WORKING_DIR }}
