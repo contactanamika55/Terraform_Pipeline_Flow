@@ -63,16 +63,30 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         shell: powershell
         run: |
-          Write-Host "Running Terraform Plan..."
+          Write-Host "======================================"
+          Write-Host "Terraform Plan"
+          Write-Host "======================================"
 
           terraform plan -input=false -var-file=terraform.tfvars -out=tfplan
 
+          Write-Host "Terraform exit code: $LASTEXITCODE"
+
           if ($LASTEXITCODE -ne 0) {
-            Write-Error "Terraform plan failed."
+            Write-Host "Terraform Plan FAILED"
             exit $LASTEXITCODE
           }
 
-          Write-Host "Terraform plan completed."
+          Write-Host "Terraform Plan SUCCESS"
+          Write-Host "Checking tfplan file..."
+
+          Get-ChildItem -Force
+
+          if (-not (Test-Path ".\tfplan")) {
+            Write-Host "ERROR: tfplan file was not created."
+            exit 1
+          }
+
+          Write-Host "SUCCESS: tfplan file exists."
 
           if (Test-Path "tfplan") {
             Write-Host "SUCCESS: tfplan created."
