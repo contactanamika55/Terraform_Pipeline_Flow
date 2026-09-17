@@ -19,231 +19,50 @@ on:
       - 'module/**'
       - '.github/workflows/deploymentpipe.yml'
 
-
 permissions:
   contents: read
 
-
 env:
   TF_WORKING_DIR: dev
-  TF_VARS_FILE: terraform.tfvars
-
 
 jobs:
 
-  # =========================================================
-  # TERRAFORM PLAN
-  # =========================================================
-
   terraform_plan:
-    name: Terraform Scan & Plan
+    name: Terraform Plan
     runs-on: self-hosted
 
     steps:
 
-      # -------------------------------------------------------
-      # 1. Checkout Code
-      # -------------------------------------------------------
-
       - name: Checkout repository
         uses: actions/checkout@v4
-
-
-      # -------------------------------------------------------
-      # 2. Check Repository
-      # -------------------------------------------------------
-
-      - name: Check Repository
-        shell: powershell
-        run: |
-          Write-Host "======================================"
-          Write-Host "Checking Repository"
-          Write-Host "======================================"
-
-          Write-Host "GitHub Workspace:"
-          Write-Host $env:GITHUB_WORKSPACE
-
-          Write-Host ""
-          Write-Host "Repository Files:"
-          Get-ChildItem $env:GITHUB_WORKSPACE
-
-          Write-Host ""
-          Write-Host "Dev Directory:"
-          Get-ChildItem "$env:GITHUB_WORKSPACE\dev"
-
-          Write-Host ""
-          Write-Host "Module Directory:"
-          Get-ChildItem "$env:GITHUB_WORKSPACE\module"
-
-
-      # -------------------------------------------------------
-      # 3. Azure Login
-      # -------------------------------------------------------
 
       - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-
-      # -------------------------------------------------------
-      # 4. Verify Azure Account
-      # -------------------------------------------------------
-
-      - name: Azure Account
-        shell: powershell
-        run: |
-          Write-Host "======================================"
-          Write-Host "Azure Account"
-          Write-Host "======================================"
-
-          az account show
-
-
-      # -------------------------------------------------------
-      # 5. Setup Terraform
-      # -------------------------------------------------------
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-
-      # -------------------------------------------------------
-      # 6. Terraform Version
-      # -------------------------------------------------------
-
-      - name: Terraform Version
-        shell: powershell
-        run: |
-          Write-Host "======================================"
-          Write-Host "Terraform Version"
-          Write-Host "======================================"
-
-          terraform version
-
-
-      # -------------------------------------------------------
-      # 7. Terraform Format Check
-      # -------------------------------------------------------
-
-      - name: Terraform Format Check
+      - name: Terraform Format
         working-directory: ${{ env.TF_WORKING_DIR }}
         shell: powershell
-        run: |
-          Write-Host "======================================"
-          Write-Host "Terraform Format Check"
-          Write-Host "======================================"
-
-          terraform fmt -check -recursive
-
-
-      # -------------------------------------------------------
-      # 8. Terraform Init
-      # -------------------------------------------------------
+        run: terraform fmt -check -recursive
 
       - name: Terraform Init
         working-directory: ${{ env.TF_WORKING_DIR }}
         shell: powershell
-        run: |
-          Write-Host "======================================"
-          Write-Host "Terraform Init"
-          Write-Host "======================================"
-
-          terraform init
-
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "Terraform init failed!"
-            exit $LASTEXITCODE
-          }
-
-
-      # -------------------------------------------------------
-      # 9. Terraform Validate
-      # -------------------------------------------------------
+        run: terraform init -input=false
 
       - name: Terraform Validate
         working-directory: ${{ env.TF_WORKING_DIR }}
         shell: powershell
-        run: |
-          Write-Host "======================================"
-          Write-Host "Terraform Validate"
-          Write-Host "======================================"
-
-          terraform validate
-
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "Terraform validate failed!"
-            exit $LASTEXITCODE
-          }
-
-
-      # -------------------------------------------------------
-      # 10. Terraform Plan
-      # -------------------------------------------------------
+        run: terraform validate
 
       - name: Terraform Plan
         working-directory: ${{ env.TF_WORKING_DIR }}
         shell: powershell
-        run: |
-          Write-Host "======================================"
-          Write-Host "Running Terraform Plan"
-          Write-Host "======================================"
-
-          Write-Host ""
-          Write-Host "Current Directory:"
-          Get-Location
-
-          Write-Host ""
-          Write-Host "Files in Dev:"
-          Get-ChildItem
-
-          Write-Host ""
-          Write-Host "Running Terraform Plan..."
-
-          terraform plan -var-file="terraform.tfvars" -out="$env:GITHUB_WORKSPACE\dev\tfplan"
-
-          Write-Host ""
-          Write-Host "Terraform Exit Code: $LASTEXITCODE"
-
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "Terraform plan failed with exit code $LASTEXITCODE"
-            exit $LASTEXITCODE
-          }
-
-          Write-Host ""
-          Write-Host "Terraform plan completed successfully."
-
-
-      # -------------------------------------------------------
-      # 11. Verify tfplan
-      # -------------------------------------------------------
-
-      - name: Check Terraform Plan File
-        shell: powershell
-        run: |
-          Write-Host "======================================"
-          Write-Host "Checking tfplan File"
-          Write-Host "======================================"
-
-          $planPath = "$env:GITHUB_WORKSPACE\dev\tfplan"
-
-          Write-Host "Expected Plan Path:"
-          Write-Host $planPath
-
-          if (-not (Test-Path $planPath)) {
-            Write-Error "ERROR: tfplan was NOT created!"
-            exit 1
-          }
-
-          Write-Host ""
-          Write-Host "SUCCESS: tfplan was created."
-
-          Get-Item $planPath
-
-
-      # -------------------------------------------------------
-      # 12. Upload Terraform Plan
-      # -------------------------------------------------------
+        run: terraform plan -var-file="terraform.tfvars" -out="tfplan"
 
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
@@ -254,10 +73,6 @@ jobs:
           retention-days: 1
 
 
-  # =========================================================
-  # TERRAFORM APPLY
-  # =========================================================
-
   terraform_apply:
     name: Terraform Apply
     runs-on: self-hosted
@@ -266,69 +81,21 @@ jobs:
 
     steps:
 
-      # -------------------------------------------------------
-      # 1. Checkout Code
-      # -------------------------------------------------------
-
       - name: Checkout repository
         uses: actions/checkout@v4
-
-
-      # -------------------------------------------------------
-      # 2. Azure Login
-      # -------------------------------------------------------
 
       - name: Azure Login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-
-      # -------------------------------------------------------
-      # 3. Verify Azure
-      # -------------------------------------------------------
-
-      - name: Azure Account
-        shell: powershell
-        run: |
-          Write-Host "======================================"
-          Write-Host "Azure Account"
-          Write-Host "======================================"
-
-          az account show
-
-
-      # -------------------------------------------------------
-      # 4. Setup Terraform
-      # -------------------------------------------------------
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
-
-
-      # -------------------------------------------------------
-      # 5. Terraform Init
-      # -------------------------------------------------------
 
       - name: Terraform Init
         working-directory: ${{ env.TF_WORKING_DIR }}
         shell: powershell
-        run: |
-          Write-Host "======================================"
-          Write-Host "Terraform Init"
-          Write-Host "======================================"
-
-          terraform init
-
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "Terraform init failed!"
-            exit $LASTEXITCODE
-          }
-
-
-      # -------------------------------------------------------
-      # 6. Download Terraform Plan
-      # -------------------------------------------------------
+        run: terraform init -input=false
 
       - name: Download Terraform Plan
         uses: actions/download-artifact@v4
@@ -336,57 +103,7 @@ jobs:
           name: terraform-plan
           path: ${{ github.workspace }}/dev
 
-
-      # -------------------------------------------------------
-      # 7. Check Downloaded Plan
-      # -------------------------------------------------------
-
-      - name: Check Downloaded Plan
-        shell: powershell
-        run: |
-          Write-Host "======================================"
-          Write-Host "Checking Downloaded tfplan"
-          Write-Host "======================================"
-
-          $planPath = "$env:GITHUB_WORKSPACE\dev\tfplan"
-
-          Write-Host "Expected Plan Path:"
-          Write-Host $planPath
-
-          if (-not (Test-Path $planPath)) {
-            Write-Error "ERROR: tfplan was NOT downloaded!"
-            exit 1
-          }
-
-          Write-Host ""
-          Write-Host "SUCCESS: tfplan downloaded."
-
-          Get-Item $planPath
-
-
-      # -------------------------------------------------------
-      # 8. Terraform Apply
-      # -------------------------------------------------------
-
       - name: Terraform Apply
         working-directory: ${{ env.TF_WORKING_DIR }}
         shell: powershell
-        run: |
-          Write-Host "======================================"
-          Write-Host "Running Terraform Apply"
-          Write-Host "======================================"
-
-          terraform apply -auto-approve tfplan
-
-          Write-Host ""
-          Write-Host "Terraform Exit Code: $LASTEXITCODE"
-
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "Terraform apply failed with exit code $LASTEXITCODE"
-            exit $LASTEXITCODE
-          }
-
-          Write-Host ""
-          Write-Host "======================================"
-          Write-Host "Terraform Apply Completed Successfully"
-          Write-Host "======================================"
+        run: terraform apply -auto-approve tfplan
