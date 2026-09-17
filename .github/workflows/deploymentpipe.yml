@@ -45,63 +45,55 @@ jobs:
         uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Format
-        working-directory: ${{ env.TF_WORKING_DIR }}
+        working-directory: dev
         shell: powershell
         run: terraform fmt -check -recursive
 
       - name: Terraform Init
-        working-directory: ${{ env.TF_WORKING_DIR }}
+        working-directory: dev
         shell: powershell
         run: terraform init -input=false
 
       - name: Terraform Validate
-        working-directory: ${{ env.TF_WORKING_DIR }}
+        working-directory: dev
         shell: powershell
         run: terraform validate
 
       - name: Terraform Plan
-        working-directory: ${{ env.TF_WORKING_DIR }}
+        working-directory: dev
         shell: powershell
         run: |
-          Write-Host "======================================"
-          Write-Host "Terraform Plan"
-          Write-Host "======================================"
+          Write-Host "=========================================="
+          Write-Host "TERRAFORM PLAN"
+          Write-Host "=========================================="
 
-          terraform plan -input=false -var-file=terraform.tfvars -out=tfplan
-
-          Write-Host "Terraform exit code: $LASTEXITCODE"
+          terraform plan -input=false -var-file="terraform.tfvars" -out="tfplan"
 
           if ($LASTEXITCODE -ne 0) {
-            Write-Host "Terraform Plan FAILED"
+            Write-Host "Terraform plan command failed."
             exit $LASTEXITCODE
           }
 
-          Write-Host "Terraform Plan SUCCESS"
-          Write-Host "Checking tfplan file..."
+          Write-Host "Terraform plan command completed."
+
+          Write-Host "=========================================="
+          Write-Host "FILES IN DEV DIRECTORY"
+          Write-Host "=========================================="
 
           Get-ChildItem -Force
 
-          if (-not (Test-Path ".\tfplan")) {
-            Write-Host "ERROR: tfplan file was not created."
+          if (-not (Test-Path "tfplan")) {
+            Write-Host "ERROR: tfplan does not exist."
             exit 1
           }
 
-          Write-Host "SUCCESS: tfplan file exists."
-
-          if (Test-Path "tfplan") {
-            Write-Host "SUCCESS: tfplan created."
-            Get-Item "tfplan"
-          }
-          else {
-            Write-Error "ERROR: tfplan was not created."
-            exit 1
-          }
+          Write-Host "SUCCESS: tfplan exists."
 
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
         with:
           name: terraform-plan
-          path: dev/tfplan
+          path: ${{ github.workspace }}/dev/tfplan
           if-no-files-found: error
           retention-days: 1
 
@@ -126,7 +118,7 @@ jobs:
         uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Init
-        working-directory: ${{ env.TF_WORKING_DIR }}
+        working-directory: dev
         shell: powershell
         run: terraform init -input=false
 
@@ -134,19 +126,23 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: terraform-plan
-          path: dev
+          path: ${{ github.workspace }}/dev
 
-      - name: Terraform Apply
-        working-directory: ${{ env.TF_WORKING_DIR }}
+      - name: Verify Plan
+        working-directory: dev
         shell: powershell
         run: |
-          Write-Host "Running Terraform Apply..."
-
           if (-not (Test-Path "tfplan")) {
-            Write-Error "ERROR: tfplan was not downloaded."
+            Write-Error "tfplan was not downloaded."
             exit 1
           }
 
+          Write-Host "tfplan downloaded successfully."
+
+      - name: Terraform Apply
+        working-directory: dev
+        shell: powershell
+        run: |
           terraform apply -input=false -auto-approve tfplan
 
           if ($LASTEXITCODE -ne 0) {
@@ -154,4 +150,4 @@ jobs:
             exit $LASTEXITCODE
           }
 
-          Write-Host "Terraform Apply completed successfully."
+          Write-Host "Terraform apply completed successfully."
