@@ -46,9 +46,6 @@ jobs:
           Write-Host "Workspace:"
           Write-Host $env:GITHUB_WORKSPACE
 
-          Write-Host "Repository files:"
-          Get-ChildItem $env:GITHUB_WORKSPACE
-
           Write-Host "Dev files:"
           Get-ChildItem "$env:GITHUB_WORKSPACE\dev"
 
@@ -79,28 +76,46 @@ jobs:
         shell: powershell
         run: terraform validate
 
+      # ==============================================
+      # Terraform Plan
+      # ==============================================
       - name: Terraform Plan
         working-directory: ${{ env.TF_WORKING_DIR }}
         shell: powershell
         run: |
-          terraform plan `
-            -var-file="${{ env.TF_VARS_FILE }}" `
-            -out=tfplan
+          Write-Host "Running Terraform Plan..."
 
+          terraform plan -var-file="terraform.tfvars" -out="tfplan"
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Terraform plan failed!"
+            exit $LASTEXITCODE
+          }
+
+      # ==============================================
+      # Verify Plan
+      # ==============================================
       - name: Check Terraform Plan
         working-directory: ${{ env.TF_WORKING_DIR }}
         shell: powershell
         run: |
-          Write-Host "Checking tfplan..."
+          Write-Host "======================================"
+          Write-Host "Checking tfplan file"
+          Write-Host "======================================"
+
+          Get-Location
           Get-ChildItem
 
-          if (-not (Test-Path "tfplan")) {
-            Write-Error "tfplan was not created"
+          if (-not (Test-Path ".\tfplan")) {
+            Write-Error "ERROR: tfplan was NOT created!"
             exit 1
           }
 
-          Write-Host "tfplan created successfully"
+          Write-Host "SUCCESS: tfplan was created."
 
+      # ==============================================
+      # Upload Plan
+      # ==============================================
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
         with:
@@ -141,28 +156,50 @@ jobs:
         shell: powershell
         run: terraform init
 
+      # ==============================================
+      # Download Plan
+      # ==============================================
       - name: Download Terraform Plan
         uses: actions/download-artifact@v4
         with:
           name: terraform-plan
           path: ${{ github.workspace }}/dev
 
+      # ==============================================
+      # Verify Download
+      # ==============================================
       - name: Check Downloaded Plan
         working-directory: ${{ env.TF_WORKING_DIR }}
         shell: powershell
         run: |
-          Write-Host "Checking downloaded tfplan..."
+          Write-Host "======================================"
+          Write-Host "Checking downloaded tfplan"
+          Write-Host "======================================"
+
+          Get-Location
           Get-ChildItem
 
-          if (-not (Test-Path "tfplan")) {
-            Write-Error "tfplan was not downloaded"
+          if (-not (Test-Path ".\tfplan")) {
+            Write-Error "ERROR: tfplan was NOT downloaded!"
             exit 1
           }
 
-          Write-Host "tfplan downloaded successfully"
+          Write-Host "SUCCESS: tfplan downloaded."
 
+      # ==============================================
+      # Apply
+      # ==============================================
       - name: Terraform Apply
         working-directory: ${{ env.TF_WORKING_DIR }}
         shell: powershell
         run: |
+          Write-Host "Running Terraform Apply..."
+
           terraform apply -auto-approve tfplan
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Terraform apply failed!"
+            exit $LASTEXITCODE
+          }
+
+          Write-Host "Terraform Apply completed successfully."
