@@ -33,7 +33,7 @@ jobs:
 
     steps:
 
-      - name: Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Azure Login
@@ -45,49 +45,49 @@ jobs:
         uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Format
-        working-directory: dev
+        working-directory: ${{ env.TF_WORKING_DIR }}
         shell: powershell
         run: terraform fmt -check -recursive
 
       - name: Terraform Init
-        working-directory: dev
+        working-directory: ${{ env.TF_WORKING_DIR }}
         shell: powershell
         run: terraform init -input=false
 
       - name: Terraform Validate
-        working-directory: dev
+        working-directory: ${{ env.TF_WORKING_DIR }}
         shell: powershell
         run: terraform validate
 
       - name: Terraform Plan
-        working-directory: dev
+        working-directory: ${{ env.TF_WORKING_DIR }}
         shell: powershell
         run: |
-          terraform plan `
-            -var-file="terraform.tfvars" `
-            -out="$env:GITHUB_WORKSPACE\dev\tfplan"
+          Write-Host "Running Terraform Plan..."
 
-      - name: Verify Terraform Plan
-        shell: powershell
-        run: |
-          $planFile = Join-Path $env:GITHUB_WORKSPACE "dev\tfplan"
+          terraform plan -input=false -var-file=terraform.tfvars -out=tfplan
 
-          Write-Host "Checking Terraform plan file..."
-          Write-Host "Expected file: $planFile"
-
-          if (-not (Test-Path $planFile)) {
-              Write-Error "Terraform plan file was not created: $planFile"
-              exit 1
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Terraform plan failed."
+            exit $LASTEXITCODE
           }
 
-          Write-Host "Terraform plan file found successfully."
-          Get-Item $planFile
+          Write-Host "Terraform plan completed."
+
+          if (Test-Path "tfplan") {
+            Write-Host "SUCCESS: tfplan created."
+            Get-Item "tfplan"
+          }
+          else {
+            Write-Error "ERROR: tfplan was not created."
+            exit 1
+          }
 
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
         with:
           name: terraform-plan
-          path: ${{ github.workspace }}/dev/tfplan
+          path: dev/tfplan
           if-no-files-found: error
           retention-days: 1
 
@@ -100,7 +100,7 @@ jobs:
 
     steps:
 
-      - name: Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Azure Login
@@ -112,7 +112,7 @@ jobs:
         uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Init
-        working-directory: dev
+        working-directory: ${{ env.TF_WORKING_DIR }}
         shell: powershell
         run: terraform init -input=false
 
@@ -120,25 +120,24 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: terraform-plan
-          path: ${{ github.workspace }}/dev
-
-      - name: Verify Downloaded Plan
-        shell: powershell
-        run: |
-          $planFile = Join-Path $env:GITHUB_WORKSPACE "dev\tfplan"
-
-          Write-Host "Checking downloaded Terraform plan..."
-          Write-Host "Expected file: $planFile"
-
-          if (-not (Test-Path $planFile)) {
-              Write-Error "Terraform plan file was not downloaded."
-              exit 1
-          }
-
-          Write-Host "Terraform plan downloaded successfully."
-          Get-Item $planFile
+          path: dev
 
       - name: Terraform Apply
-        working-directory: dev
+        working-directory: ${{ env.TF_WORKING_DIR }}
         shell: powershell
-        run: terraform apply -auto-approve tfplan
+        run: |
+          Write-Host "Running Terraform Apply..."
+
+          if (-not (Test-Path "tfplan")) {
+            Write-Error "ERROR: tfplan was not downloaded."
+            exit 1
+          }
+
+          terraform apply -input=false -auto-approve tfplan
+
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Terraform apply failed."
+            exit $LASTEXITCODE
+          }
+
+          Write-Host "Terraform Apply completed successfully."
