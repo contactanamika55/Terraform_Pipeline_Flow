@@ -33,7 +33,7 @@ jobs:
 
     steps:
 
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Azure Login
@@ -45,24 +45,43 @@ jobs:
         uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Format
-        working-directory: ${{ env.TF_WORKING_DIR }}
+        working-directory: dev
         shell: powershell
         run: terraform fmt -check -recursive
 
       - name: Terraform Init
-        working-directory: ${{ env.TF_WORKING_DIR }}
+        working-directory: dev
         shell: powershell
         run: terraform init -input=false
 
       - name: Terraform Validate
-        working-directory: ${{ env.TF_WORKING_DIR }}
+        working-directory: dev
         shell: powershell
         run: terraform validate
 
       - name: Terraform Plan
-        working-directory: ${{ env.TF_WORKING_DIR }}
+        working-directory: dev
         shell: powershell
-        run: terraform plan -var-file="terraform.tfvars" -out="tfplan"
+        run: |
+          terraform plan `
+            -var-file="terraform.tfvars" `
+            -out="$env:GITHUB_WORKSPACE\dev\tfplan"
+
+      - name: Verify Terraform Plan
+        shell: powershell
+        run: |
+          $planFile = Join-Path $env:GITHUB_WORKSPACE "dev\tfplan"
+
+          Write-Host "Checking Terraform plan file..."
+          Write-Host "Expected file: $planFile"
+
+          if (-not (Test-Path $planFile)) {
+              Write-Error "Terraform plan file was not created: $planFile"
+              exit 1
+          }
+
+          Write-Host "Terraform plan file found successfully."
+          Get-Item $planFile
 
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
@@ -81,7 +100,7 @@ jobs:
 
     steps:
 
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Azure Login
@@ -93,7 +112,7 @@ jobs:
         uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Init
-        working-directory: ${{ env.TF_WORKING_DIR }}
+        working-directory: dev
         shell: powershell
         run: terraform init -input=false
 
@@ -103,7 +122,23 @@ jobs:
           name: terraform-plan
           path: ${{ github.workspace }}/dev
 
+      - name: Verify Downloaded Plan
+        shell: powershell
+        run: |
+          $planFile = Join-Path $env:GITHUB_WORKSPACE "dev\tfplan"
+
+          Write-Host "Checking downloaded Terraform plan..."
+          Write-Host "Expected file: $planFile"
+
+          if (-not (Test-Path $planFile)) {
+              Write-Error "Terraform plan file was not downloaded."
+              exit 1
+          }
+
+          Write-Host "Terraform plan downloaded successfully."
+          Get-Item $planFile
+
       - name: Terraform Apply
-        working-directory: ${{ env.TF_WORKING_DIR }}
+        working-directory: dev
         shell: powershell
         run: terraform apply -auto-approve tfplan
