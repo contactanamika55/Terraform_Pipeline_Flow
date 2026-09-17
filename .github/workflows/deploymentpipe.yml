@@ -28,6 +28,9 @@ env:
 
 jobs:
 
+  # ==================================================
+  # 1. Terraform Scan / Validation / Plan
+  # ==================================================
   terraform_plan:
     name: Terraform Scan & Plan
     runs-on: self-hosted
@@ -67,14 +70,36 @@ jobs:
             -var-file="${{ env.TF_VARS_FILE }}" `
             -out=tfplan
 
+      # Check that tfplan was actually created
+      - name: Check Terraform Plan File
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          Write-Host "Current directory:"
+          Get-Location
+
+          Write-Host "Files in dev:"
+          Get-ChildItem
+
+          if (-not (Test-Path "tfplan")) {
+            Write-Error "ERROR: tfplan file was NOT created!"
+            exit 1
+          }
+
+          Write-Host "SUCCESS: tfplan file exists."
+
+      # Upload tfplan as artifact
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
         with:
           name: terraform-plan
-          path: dev/tfplan
+          path: ${{ github.workspace }}/dev/tfplan
+          if-no-files-found: error
           retention-days: 1
 
 
+  # ==================================================
+  # 2. Terraform Apply
+  # ==================================================
   terraform_apply:
     name: Terraform Apply
     runs-on: self-hosted
@@ -101,18 +126,32 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform init
 
+      # Download artifact created by terraform_plan
       - name: Download Terraform Plan
         uses: actions/download-artifact@v4
         with:
           name: terraform-plan
-          path: dev
+          path: ${{ github.workspace }}/dev
 
-      - name: Check Terraform Plan
+      # Verify downloaded file
+      - name: Check Downloaded Terraform Plan
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: |
-          Write-Host "Checking tfplan file..."
+          Write-Host "Current directory:"
+          Get-Location
+
+          Write-Host "Downloaded files:"
           Get-ChildItem
 
+          if (-not (Test-Path "tfplan")) {
+            Write-Error "ERROR: Downloaded tfplan file was NOT found!"
+            exit 1
+          }
+
+          Write-Host "SUCCESS: tfplan downloaded successfully."
+
+      # Apply
       - name: Terraform Apply
         working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform apply -auto-approve tfplan
+        run: |
+          terraform apply -auto-approve tfplan
