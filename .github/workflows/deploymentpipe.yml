@@ -81,46 +81,42 @@ jobs:
   # ==================================================
   # 2. Terraform Apply
   # ==================================================
+  
   terraform-apply:
-    name: Terraform Apply
-    runs-on: self-hosted
+  name: Terraform Apply
+  runs-on: self-hosted
 
-    needs: terraform-plan
+  needs: terraform-plan
 
-    if: |
-      github.event_name == 'push' &&
-      github.ref == 'refs/heads/main'
+  environment:
+    name: production
 
-    # GitHub Environment approval
-    environment:
-      name: production
+  steps:
 
-    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    - name: Azure Login
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Azure Login
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+    - name: Azure Account
+      run: az account show
 
-      - name: Azure Account
-        run: az account show
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+    - name: Terraform Init
+      working-directory: ${{ env.TF_WORKING_DIR }}
+      run: terraform init
 
-      - name: Terraform Init
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform init
+    - name: Download Terraform Plan
+      uses: actions/download-artifact@v4
+      with:
+        name: terraform-plan
+        path: dev
 
-      - name: Download Terraform Plan
-        uses: actions/download-artifact@v4
-        with:
-          name: terraform-plan
-          path: dev
-
-      - name: Terraform Apply
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform apply -auto-approve tfplan
+    - name: Terraform Apply
+      working-directory: ${{ env.TF_WORKING_DIR }}
+      run: terraform apply -auto-approve tfplan
