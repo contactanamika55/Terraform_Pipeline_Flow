@@ -30,7 +30,7 @@ jobs:
   # ==================================================
   terraform-plan:
     name: Terraform Scan & Plan
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Windows, X64]
 
     steps:
 
