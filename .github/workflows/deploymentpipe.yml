@@ -1,0 +1,120 @@
+
+name: Terraform Deploy
+on:
+  workflow_dispatch: 
+  push:
+    branches:
+      - main
+    paths:
+      - 'environment/**'
+      - '.github/workflows/deploy-infra.yml'
+
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'environment/**'
+      - '.github/workflows/deploy-infra.yml'
+
+permissions:
+  contents: read
+
+env:
+  TF_WORKING_DIR: environment
+  TF_VARS_FILE: dev/terraform.tfvars
+
+jobs:
+
+  # ==================================================
+  # 1. Terraform Scan / Validation / Plan
+  # ==================================================
+  terraform-plan:
+    name: Terraform Scan & Plan
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Azure Account
+        run: az account show
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Format Check
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform plan \
+            -var-file="${{ env.TF_VARS_FILE }}" \
+            -out=tfplan
+
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: environment/tfplan
+          retention-days: 1
+  # ==================================================
+  # 2. Terraform Apply
+  # ==================================================
+  terraform-apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+
+    needs: terraform-plan
+
+    if: |
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main'
+
+    # Manual approval
+    environment:
+      name: production
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Azure Account
+        run: az account show
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init
+
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan
+          path: environment
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform apply -auto-approve tfplan
