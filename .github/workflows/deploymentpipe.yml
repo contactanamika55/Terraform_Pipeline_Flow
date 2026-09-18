@@ -67,7 +67,7 @@ jobs:
         run: |
           terraform plan \
             -var-file="${{ env.TF_VARS_FILE }}" `
-            -out=tfplan
+            -out="tfplan"
 
       - name: Upload Terraform Plan
         uses: actions/upload-artifact@v4
