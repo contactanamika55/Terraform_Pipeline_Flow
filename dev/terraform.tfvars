@@ -1,7 +1,7 @@
 root_rg = {
   "RG1" = {
     rg_name  = "FITCART_RG"
-    location = "Central US"
+    location = "East US"
   }
 
 }
@@ -11,7 +11,7 @@ root_stg = {
   storage1 = {
     storage_account_name     = "devfitcartstg20260918"
     resource_group           = "FITCART_RG"
-    location                 = "Central US"
+    location                 = "East US"
     account_tier             = "Standard"
     account_replication_type = "LRS"
   }
@@ -21,7 +21,7 @@ root_network = {
   network1 = {
     name                = "dev-vnet-001"
     address_space       = ["10.0.0.0/16"]
-    location            = "Central US"
+    location            = "East US"
     resource_group_name = "FITCART_RG"
 
     subnet = {
@@ -42,7 +42,7 @@ root_network = {
 root_server = {
   sqlserver1 = {
     name                = "dev-server-001"
-    location            = "East US 2"
+    location            = "East US"
     resource_group_name = "Central US"
     admin_login         = "sqladmin"
     admin_password      = "@1234devenv"
@@ -60,7 +60,7 @@ root_database = {
 root_AKS = {
   aks1 = {
     aks_name            = "dev-cluster-01"
-    location            = "Central US"
+    location            = "East US"
     resource_group_name = "FITCART_RG"
     dns_prefix          = "devaks"
     default_node_pool   = "system"
@@ -76,7 +76,7 @@ root_AKS = {
 root_ACR = {
   acr1 = {
     name                = "devacr090"
-    location            = "Central US"
+    location            = "East US"
     resource_group_name = "FITCART_RG"
     sku                 = "Standard"
   }
@@ -87,7 +87,7 @@ root_ACR = {
 root_APPGW = {
   appgw1 = {
     name                = "dev-appgw-001"
-    location            = "Central US"
+    location            = "East US"
     resource_group_name = "FITCART_RG"
 
     vnet_name      = "dev-vnet-001"
@@ -104,7 +104,7 @@ root_APPGW = {
 root_publicip = {
   appgw1 = {
     public_ip_name      = "dev-appgw-pip"
-    location            = "Central US"
+    location            = "East US"
     resource_group_name = "FITCART_RG"
   }
 }
