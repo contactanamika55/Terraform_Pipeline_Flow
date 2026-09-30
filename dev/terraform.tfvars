@@ -75,7 +75,7 @@ root_AKS = {
 
 root_ACR = {
   acr1 = {
-    name                = "devacr090"
+    name                = "devacr010"
     location            = "East US"
     resource_group_name = "FITCART_RG"
     sku                 = "Standard"
