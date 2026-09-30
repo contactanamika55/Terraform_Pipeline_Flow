@@ -43,7 +43,7 @@ root_server = {
   sqlserver1 = {
     name                = "dev-server-001"
     location            = "East US"
-    resource_group_name = "Central US"
+    resource_group_name = "East US"
     admin_login         = "sqladmin"
     admin_password      = "@1234devenv"
 
