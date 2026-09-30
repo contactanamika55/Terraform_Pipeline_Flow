@@ -9,7 +9,7 @@ root_rg = {
 root_stg = {
 
   storage1 = {
-    storage_account_name     = "devfitcartstg20260918"
+    storage_account_name     = "devfitcartstg20260977"
     resource_group           = "FITCART_RG"
     location                 = "East US"
     account_tier             = "Standard"
